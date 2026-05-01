@@ -848,7 +848,12 @@ def healthz():
 def download_xlsx():
     summary, df = simulate(request.args)
     out = io.BytesIO()
-    with pd.ExcelWriter(out, engine="xlsxwriter") as writer:
+    engine = "xlsxwriter"
+    try:
+        import xlsxwriter  # noqa: F401
+    except Exception:
+        engine = "openpyxl"
+    with pd.ExcelWriter(out, engine=engine) as writer:
         # Summary sheet
         summary_df = pd.DataFrame(
             [
@@ -863,19 +868,26 @@ def download_xlsx():
         summary_df.to_excel(writer, sheet_name="Summary", index=False)
         ws_sum = writer.sheets["Summary"]
         wb = writer.book
-        header_fmt = wb.add_format({"bold": True, "bg_color": "#100058", "font_color": "white", "border": 1})
-        note_fmt = wb.add_format({"font_color": "#4b5a7a", "italic": True, "font_size": 10})
-        pct_fmt = wb.add_format({"num_format": "0.00%"})
-        link_fmt = wb.add_format({"font_color": "blue", "underline": 1})
-        for col, name in enumerate(summary_df.columns):
-            ws_sum.write(0, col, name, header_fmt)
+        if engine == "xlsxwriter":
+            header_fmt = wb.add_format({"bold": True, "bg_color": "#100058", "font_color": "white", "border": 1})
+            note_fmt = wb.add_format({"font_color": "#4b5a7a", "italic": True, "font_size": 10})
+            pct_fmt = wb.add_format({"num_format": "0.00%"})
+            link_fmt = wb.add_format({"font_color": "blue", "underline": 1})
+            for col, name in enumerate(summary_df.columns):
+                ws_sum.write(0, col, name, header_fmt)
+        else:
+            pct_fmt = None
         ws_sum.set_column("A:A", 22)
         ws_sum.set_column("B:B", 42)
-        ws_sum.write_number(2, 1, summary["irr_brl"] if summary["irr_brl"] is not None else 0, pct_fmt)
-        ws_sum.write_number(3, 1, summary["irr_usd"] if summary["irr_usd"] is not None else 0, pct_fmt)
-        ws_sum.write_url(4, 1, f"external:gs://{GCS_BUCKET_NAME}/{summary['pre_name']}", link_fmt, summary["pre_name"])
-        ws_sum.write_url(5, 1, f"external:gs://{GCS_BUCKET_NAME}/{summary['fx_name']}", link_fmt, summary["fx_name"])
-        ws_sum.write(7, 0, "Generated from Return Viewer", note_fmt)
+        if engine == "xlsxwriter":
+            ws_sum.write_number(2, 1, summary["irr_brl"] if summary["irr_brl"] is not None else 0, pct_fmt)
+            ws_sum.write_number(3, 1, summary["irr_usd"] if summary["irr_usd"] is not None else 0, pct_fmt)
+            ws_sum.write_url(4, 1, f"external:gs://{GCS_BUCKET_NAME}/{summary['pre_name']}", link_fmt, summary["pre_name"])
+            ws_sum.write_url(5, 1, f"external:gs://{GCS_BUCKET_NAME}/{summary['fx_name']}", link_fmt, summary["fx_name"])
+            ws_sum.write(7, 0, "Generated from Return Viewer", note_fmt)
+        else:
+            ws_sum.write(8, 1, f"gs://{GCS_BUCKET_NAME}/{summary['pre_name']}")
+            ws_sum.write(9, 1, f"gs://{GCS_BUCKET_NAME}/{summary['fx_name']}")
 
         # Cashflow sheet
         export = df.copy()
@@ -887,7 +899,8 @@ def download_xlsx():
         export.to_excel(writer, sheet_name="Cashflow", index=False)
         ws = writer.sheets["Cashflow"]
         for i, name in enumerate(export.columns):
-            ws.write(0, i, name, header_fmt)
+            if engine == "xlsxwriter":
+                ws.write(0, i, name, header_fmt)
             ws.set_column(i, i, 14)
         ws.freeze_panes(1, 0)
     out.seek(0)
