@@ -373,6 +373,20 @@ def fmt_money(x, decimals=1):
     return fmt_num(x, decimals)
 
 
+def to_brl_mm(x):
+    try:
+        return float(x) / 1_000_000.0
+    except Exception:
+        return x
+
+
+def to_usd_mm(x):
+    try:
+        return float(x) / 1_000_000.0
+    except Exception:
+        return x
+
+
 def fmt_pct(x):
     if x is None or (isinstance(x, float) and math.isnan(x)) or pd.isna(x):
         return "-"
@@ -434,7 +448,8 @@ def simulate(form):
     curve_date = parse_curve_date(form.get("curve_date", ""))
     pre, fx, pre_date, fx_date, pre_name, fx_name = get_curves(curve_date)
     holidays = get_holidays()
-    deal_size = parse_user_number(form.get("deal_size", 100_000_000), 100_000_000)
+    deal_size_mm = parse_user_number(form.get("deal_size", 100), 100)
+    deal_size = deal_size_mm * 1_000_000.0
     spread_pct = parse_user_number(form.get("spread", 3.00), 3.00) / 100.0
     disb_month = parse_month(form.get("disbursement_month", ""))
     disb_date = month_end(disb_month)
@@ -655,8 +670,12 @@ def table_row(label, unit, values, kind="number", decimals=1, strong=False, ital
         elif kind == "pct":
             txt = fmt_pct(v)
         elif kind == "fx":
-            txt = "-" if is_zero(v) else fmt_num(v, 4)
-        elif kind in ["usd", "brl"]:
+            txt = "-" if is_zero(v) else fmt_num(v, 2)
+        elif kind == "brl":
+            txt = fmt_money(to_brl_mm(v), decimals)
+        elif kind == "usd_mm":
+            txt = fmt_money(to_usd_mm(v), decimals)
+        elif kind == "usd":
             txt = fmt_money(v, decimals)
         elif kind == "int":
             txt = fmt_int(v)
@@ -698,40 +717,87 @@ def render_horizontal_table(df: pd.DataFrame) -> str:
 
     # 2) Debt balance bridge
     rows.append(table_spacer("Debt balance bridge"))
-    rows.append(table_row("Debt BoP", "BRL", df["debt_bop_brl"], "brl"))
-    rows.append(table_row("(+) Issuance", "BRL", df["issuance_brl"], "brl"))
-    rows.append(table_row("(+) Interest Accrual", "BRL", df["interest_accrual_brl"], "brl"))
-    rows.append(table_row("(+) Extension Fee #1", "BRL", df["extension_fee_accrual_brl"], "brl"))
-    rows.append(table_row("(+) Extension Fee #2", "BRL", df["extension_fee_accrual_brl_2"], "brl"))
-    rows.append(table_row("(-) Cash Interest", "BRL", -df["cash_interest_brl"], "brl"))
-    rows.append(table_row("(-) Debt Amortization", "BRL", -df["principal_brl"], "brl"))
-    rows.append(table_row("(=) Debt EoP", "BRL", df["debt_eop_brl"], "brl", strong=True))
+    rows.append(table_row("Debt BoP", "BRL mm", df["debt_bop_brl"], "brl"))
+    rows.append(table_row("(+) Issuance", "BRL mm", df["issuance_brl"], "brl"))
+    rows.append(table_row("(+) Interest Accrual", "BRL mm", df["interest_accrual_brl"], "brl"))
+    rows.append(table_row("(+) Extension Fee #1", "BRL mm", df["extension_fee_accrual_brl"], "brl"))
+    rows.append(table_row("(+) Extension Fee #2", "BRL mm", df["extension_fee_accrual_brl_2"], "brl"))
+    rows.append(table_row("(-) Cash Interest", "BRL mm", -df["cash_interest_brl"], "brl"))
+    rows.append(table_row("(-) Debt Amortization", "BRL mm", -df["principal_brl"], "brl"))
+    rows.append(table_row("(=) Debt EoP", "BRL mm", df["debt_eop_brl"], "brl", strong=True))
     rows.append(table_blank())
     rows.append(table_blank())
 
     # 3) Cash flow and FX conversion
     rows.append(table_spacer("Cash flow / FX"))
-    rows.append(table_row("(-) Disbursement", "BRL", df["disbursement_brl"], "brl"))
-    rows.append(table_row("(+) OID", "BRL", df["upfront_fee_brl"], "brl"))
-    rows.append(table_row("(+) Cash Interest", "BRL", df["cash_interest_brl"], "brl"))
-    rows.append(table_row("(+) Extension Fee #1", "BRL", df["cash_extension_fee_brl"], "brl"))
-    rows.append(table_row("(+) Extension Fee #2", "BRL", df["cash_extension_fee_brl_2"], "brl"))
-    rows.append(table_row("(+) Debt Repayment", "BRL", df["principal_brl"], "brl"))
-    rows.append(table_row("(=) Total Debt Cash Flow", "BRL", df["total_cf_brl"], "brl", strong=True))
+    rows.append(table_row("(-) Disbursement", "BRL mm", df["disbursement_brl"], "brl"))
+    rows.append(table_row("(+) OID", "BRL mm", df["upfront_fee_brl"], "brl"))
+    rows.append(table_row("(+) Cash Interest", "BRL mm", df["cash_interest_brl"], "brl"))
+    rows.append(table_row("(+) Extension Fee #1", "BRL mm", df["cash_extension_fee_brl"], "brl"))
+    rows.append(table_row("(+) Extension Fee #2", "BRL mm", df["cash_extension_fee_brl_2"], "brl"))
+    rows.append(table_row("(+) Debt Repayment", "BRL mm", df["principal_brl"], "brl"))
+    rows.append(table_row("(=) Total Debt Cash Flow", "BRL mm", df["total_cf_brl"], "brl", strong=True))
     rows.append(table_row("BRL/USD forward FX", "BRL/USD", df["fx_forward"], "fx", italic=True))
-    rows.append(table_row("Total Debt Cash Flow", "USD", df["total_cf_usd"], "usd", strong=True))
+    rows.append(table_row("Total Debt Cash Flow", "USD mm", df["total_cf_usd"], "usd_mm", strong=True))
 
     return f"<div class='horizontal-wrap'><table class='horizontal'><thead>{header}</thead><tbody>{''.join(rows)}</tbody></table></div>"
 
 
 CSS = """
-:root{--blue:#16356f;--line:#d9e1ef;--soft:#f6f8fb;--text:#1d2b4f;--muted:#65738c;--yellow:#ffd95b;--green:#e9f7ef;--greenline:#badfc8}*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;color:var(--text);background:#fff}.top{background:var(--blue);color:#fff;padding:22px 40px}.top h1{margin:0;font-size:30px;font-weight:500}.wrap{max-width:1800px;margin:0 auto;padding:28px 36px}.card{border:1px solid var(--line);border-radius:14px;padding:22px;background:#fff;box-shadow:0 2px 12px rgba(20,40,80,.05);margin-bottom:22px}.model-layout{display:grid;grid-template-columns:360px minmax(900px,1fr);gap:18px;align-items:start}.side-panel{position:sticky;top:18px}.side-card{border:1px solid var(--line);border-radius:14px;padding:18px;background:#fff;box-shadow:0 2px 12px rgba(20,40,80,.05);margin-bottom:16px}.side-card h2{margin:0 0 14px 0;font-size:18px;border-bottom:3px solid var(--blue);padding-bottom:7px}.terms-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}.term-row.full{grid-column:1/-1}.fee-card{grid-column:1/-1;border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff}.fee-card-grid{display:grid;grid-template-columns:1fr 1fr 92px;gap:12px;align-items:end}.fee-card .inline-check{display:grid;gap:8px;margin-top:0}.fee-card .inline-check label{font-size:14px;color:var(--text)}.inline-check{display:flex;align-items:center;gap:12px;margin-top:5px}.inline-check label{display:flex;align-items:center;gap:5px;margin:0;font-size:12px;color:var(--text)}.inline-check input{width:auto;padding:0;margin:0}.bottom-summary{margin-top:16px}.term-row label{font-size:12px;color:var(--muted);display:block;margin-bottom:5px}.term-row input,.term-row select{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px;font-size:14px}button{background:var(--yellow);border:0;padding:12px 22px;border-radius:999px;font-weight:700;cursor:pointer;width:100%;margin-top:4px}.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.kpi{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:12px}.kpi .t{font-size:11px;color:var(--muted)}.kpi .v{font-size:16px;font-weight:700;margin-top:5px}.hint{color:var(--muted);font-size:12px;margin-top:10px;line-height:1.45}.error{background:#fff3f3;color:#8a1f1f;border:1px solid #ffd0d0;border-radius:12px;padding:14px;margin-bottom:18px}.table-card{border:1px solid var(--line);border-radius:14px;padding:22px;background:#fff;box-shadow:0 2px 12px rgba(20,40,80,.05);min-width:0}.horizontal-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px;max-height:760px}.horizontal{border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:1250px}.horizontal th,.horizontal td{border-bottom:1px solid #edf1f7;border-right:1px solid #edf1f7;padding:9px 10px;text-align:center;white-space:nowrap;font-weight:400}.horizontal thead th{background:var(--blue);color:#f8fafc;position:sticky;top:0;z-index:3;font-weight:800}.horizontal .metric{position:sticky;left:0;text-align:left;background:#fff;z-index:2;min-width:245px;color:#263a66;font-weight:400}.horizontal .unit{position:sticky;left:245px;text-align:center;background:#fff;z-index:2;min-width:82px;color:#65738c;font-weight:400}.horizontal thead .metric,.horizontal thead .unit{z-index:4;background:var(--blue);color:#f8fafc;font-weight:800}.horizontal tr:nth-child(even) .metric,.horizontal tr:nth-child(even) .unit,.horizontal tbody tr:nth-child(even) td{background:#fbfcfe}.horizontal tr.strong-row th,.horizontal tr.strong-row td{background:var(--green);border-bottom:1px solid var(--greenline);font-weight:800}.horizontal tr.spacer th,.horizontal tr.spacer td{height:34px;background:#fff;border-bottom:2px solid #d9e1ef;font-weight:800;text-decoration:underline}.horizontal tr.blank-row th,.horizontal tr.blank-row td{height:30px;background:#fff!important;border-bottom:0!important;font-weight:400}.horizontal tr.spacer .spacer-label{font-weight:800;color:#16356f;background:#fff;text-decoration:underline}.horizontal tr.italic-row th,.horizontal tr.italic-row td{font-style:italic}.section-title{display:flex;justify-content:space-between;align-items:flex-end;gap:16px}h2{margin:0 0 14px 0;font-size:21px}.small{font-size:12px;color:var(--muted)}@media(max-width:1100px){.model-layout{grid-template-columns:1fr}.side-panel{position:static}.kpis{grid-template-columns:repeat(2,1fr)}}
+:root{--navy:#100058;--navy-2:#100058;--line:#cfd6e6;--soft:#f5f6fb;--text:#1c1f37;--muted:#5f6782;--white:#fff;--green:#eaf9f0;--greenline:#bde2cb}
+*{box-sizing:border-box}
+body{margin:0;font-family:Georgia,'Times New Roman',serif;color:var(--text);background:#ececf1}
+.top{max-width:1680px;margin:22px auto 0;border-radius:10px;background:linear-gradient(90deg,var(--navy),var(--navy-2));color:#fff;padding:22px 28px}
+.top h1{margin:0;font-size:28px;font-weight:700;letter-spacing:.2px}
+.top p{margin:10px 0 0;font-size:12px;opacity:.95}
+.wrap{max-width:1680px;margin:0 auto;padding:18px 30px 28px}
+.model-layout{display:grid;grid-template-columns:380px minmax(900px,1fr);gap:20px;align-items:start}
+.side-panel{position:sticky;top:18px}
+.side-card,.table-card{border:1px solid var(--line);border-radius:8px;padding:20px;background:var(--white)}
+.side-card h2{margin:0 0 14px;font-size:18px;color:var(--navy);text-align:center}
+.terms-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}
+.term-row.full{grid-column:1/-1}
+.fee-card{grid-column:1/-1;border:1px solid var(--line);border-radius:8px;padding:12px;background:#fbfbfe}
+.fee-card-grid{display:grid;grid-template-columns:1fr 1fr 92px;gap:12px;align-items:end}
+.fee-card .inline-check{display:grid;gap:8px;margin-top:0}
+.fee-card .inline-check label{font-size:14px;color:var(--text)}
+.inline-check{display:flex;align-items:center;gap:12px;margin-top:5px}
+.inline-check label{display:flex;align-items:center;gap:5px;margin:0;font-size:12px;color:var(--text)}
+.inline-check input{width:auto;padding:0;margin:0}
+.bottom-summary{margin-top:16px}
+.term-row label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+.term-row input,.term-row select{width:100%;padding:10px;border:1px solid #aeb8d0;border-radius:4px;font-size:14px;font-family:inherit}
+button{background:var(--navy);color:#fff;border:1px solid var(--navy);padding:12px 22px;border-radius:999px;font-weight:700;cursor:pointer;width:100%;margin-top:4px}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.kpi{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:12px}
+.kpi .t{font-size:12px;color:var(--muted)}
+.kpi .v{font-size:18px;font-weight:700;margin-top:5px;color:var(--navy)}
+.hint{color:var(--muted);font-size:12px;margin-top:10px;line-height:1.45}
+.error{background:#fff3f3;color:#8a1f1f;border:1px solid #ffd0d0;border-radius:8px;padding:14px;margin-bottom:18px}
+.table-card{min-width:0;overflow:hidden}
+.horizontal-wrap{overflow:auto;border:1px solid var(--line);border-radius:8px;max-height:540px}
+.horizontal{border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:1250px}
+.horizontal th,.horizontal td{border-bottom:1px solid #e3e7f2;border-right:1px solid #e3e7f2;padding:9px 10px;text-align:center;white-space:nowrap;font-weight:400}
+.horizontal thead th{background:var(--navy);color:#f8fafc;position:sticky;top:0;z-index:3;font-weight:700}
+.horizontal .metric{position:sticky;left:0;text-align:left;background:#fff;z-index:2;min-width:245px;color:#1f2b50;font-weight:400}
+.horizontal .unit{position:sticky;left:245px;text-align:center;background:#fff;z-index:2;min-width:82px;color:#65738c;font-weight:400}
+.horizontal thead .metric,.horizontal thead .unit{z-index:4;background:var(--navy);color:#f8fafc;font-weight:700}
+.horizontal tr:nth-child(even) .metric,.horizontal tr:nth-child(even) .unit,.horizontal tbody tr:nth-child(even) td{background:#fbfcff}
+.horizontal tr.strong-row th,.horizontal tr.strong-row td{background:var(--green);border-bottom:1px solid var(--greenline);font-weight:700}
+.horizontal tr.spacer th,.horizontal tr.spacer td{height:34px;background:#fff;border-bottom:2px solid #cfd6e6;font-weight:700;text-decoration:underline}
+.horizontal tr.blank-row th,.horizontal tr.blank-row td{height:30px;background:#fff!important;border-bottom:0!important;font-weight:400}
+.horizontal tr.spacer .spacer-label{font-weight:700;color:var(--navy);background:#fff;text-decoration:underline}
+.horizontal tr.italic-row th,.horizontal tr.italic-row td{font-style:italic}
+.section-title{display:flex;justify-content:space-between;align-items:flex-end;gap:16px}
+h2{margin:0 0 14px;font-size:21px;color:var(--navy)}
+.small{font-size:12px;color:var(--muted)}
+@media(max-width:1100px){.model-layout{grid-template-columns:1fr}.side-panel{position:static}.kpis{grid-template-columns:repeat(2,1fr)}}
 """
 
 
 def render_page(error=None):
     defaults = {
-        "deal_size": f"{parse_user_number(request.values.get('deal_size', '100000000'), 100000000):,.0f}",
+        "deal_size": f"{parse_user_number(request.values.get('deal_size', '100'), 100):,.2f}",
         "spread": request.values.get("spread", "3.00"),
         "maturity_months": request.values.get("maturity_months", "36"),
         "disbursement_month": request.values.get("disbursement_month", pd.Timestamp.today().strftime("%Y-%m")),
@@ -755,14 +821,16 @@ def render_page(error=None):
 
     kpis = ""
     if summary:
-        kpis = f"""<div class="kpis"><div class="kpi"><div class="t">Curve Date</div><div class="v">{summary['curve_date']}</div></div><div class="kpi"><div class="t">Total Interest BRL</div><div class="v">{fmt_money(summary['total_interest'])}</div></div><div class="kpi"><div class="t">IRR BRL</div><div class="v">{fmt_pct(summary['irr_brl'])}</div></div><div class="kpi"><div class="t">IRR USD</div><div class="v">{fmt_pct(summary['irr_usd'])}</div></div></div>"""
+        kpis = f"""<div class="small">Curve date used: {summary['curve_date']}</div><div class="kpis"><div class="kpi"><div class="t">IRR BRL</div><div class="v">{fmt_pct(summary['irr_brl'])}</div></div><div class="kpi"><div class="t">IRR USD</div><div class="v">{fmt_pct(summary['irr_usd'])}</div></div></div>"""
     else:
         kpis = '<div class="hint">Fill the inputs and click Simulate.</div>'
 
     err = f"<div class='error'>{error}</div>" if error else ""
     table = render_horizontal_table(df)
 
-    html = f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Return Viewer</title><style>{CSS}</style></head><body><div class="top"><h1>Return Viewer</h1></div><div class="wrap">{err}<div class="model-layout"><aside class="side-panel"><form class="side-card" method="get"><h2>Deal Terms</h2><div class="terms-grid"><div class="term-row"><label>Curve Date</label><input name="curve_date" type="date" value="{defaults['curve_date']}"></div><div class="term-row"><label>Deal size BRL</label><input name="deal_size" type="number" step="20000000" value="{int(parse_user_number(defaults['deal_size'], 100000000))}"></div><div class="term-row"><label>CDI+ spread, % p.a.</label><input name="spread" type="number" step="0.25" value="{defaults['spread']}"></div><div class="term-row"><label>Disbursement month</label><input name="disbursement_month" type="month" value="{defaults['disbursement_month']}"></div><div class="term-row"><label>Maturity, months</label><input name="maturity_months" type="number" step="3" value="{defaults['maturity_months']}"></div><div class="term-row"><label>Amortization</label><select name="amortization"><option value="bullet" {'selected' if defaults['amortization']=='bullet' else ''}>Bullet</option><option value="linear" {'selected' if defaults['amortization']=='linear' else ''}>Linear quarterly</option></select></div><div class="term-row"><label>OID, % of principal</label><input name="upfront_fee" type="number" step="0.25" value="{defaults['upfront_fee']}"></div><div></div><div class="fee-card"><div class="fee-card-grid"><div class="term-row"><label>Extension fee #1</label><input name="extension_fee" type="number" step="0.25" value="{defaults['extension_fee']}"></div><div class="term-row"><label>Month</label><input name="extension_fee_month" type="number" step="3" value="{defaults['extension_fee_month']}"></div><div class="inline-check"><label><input type="radio" name="extension_fee_treatment" value="pik" {'checked' if defaults['extension_fee_treatment']=='pik' else ''}> PIK</label><label><input type="radio" name="extension_fee_treatment" value="cash" {'checked' if defaults['extension_fee_treatment']=='cash' else ''}> Cash</label></div></div></div><div class="fee-card"><div class="fee-card-grid"><div class="term-row"><label>Extension fee #2</label><input name="extension_fee_2" type="number" step="0.25" value="{defaults['extension_fee_2']}"></div><div class="term-row"><label>Month</label><input name="extension_fee_month_2" type="number" step="3" value="{defaults['extension_fee_month_2']}"></div><div class="inline-check"><label><input type="radio" name="extension_fee_treatment_2" value="pik" {'checked' if defaults['extension_fee_treatment_2']=='pik' else ''}> PIK</label><label><input type="radio" name="extension_fee_treatment_2" value="cash" {'checked' if defaults['extension_fee_treatment_2']=='cash' else ''}> Cash</label></div></div></div><div class="term-row full"><label>Interest payment frequency, months</label><select name="interest_frequency_months"><option value="3" {'selected' if defaults['interest_frequency_months']=='3' else ''}>Quarterly</option><option value="6" {'selected' if defaults['interest_frequency_months']=='6' else ''}>Semiannual</option><option value="12" {'selected' if defaults['interest_frequency_months']=='12' else ''}>Annual</option><option value="999" {'selected' if defaults['interest_frequency_months']=='999' else ''}>Bullet / accrue until maturity</option></select></div><div class="term-row full"><button type="submit">Simulate</button></div></div><div class="hint">Schedule is every 3 months from the disbursement month. Business days use holidays.xlsx. FX and PRE/CDI come from the selected Curve Date and are interpolated to each table date. Extension fee can be PIK into debt or paid in cash.</div></form></aside><main class="table-card"><div class="section-title"><h2>Quarterly deal cash flow — horizontal view</h2><div class="small">All BRL/USD figures shown in full amount, without currency symbols.</div></div>{table}<div class="bottom-summary"><h2>Summary</h2>{kpis}</div></main></div></div>
+    query = request.query_string.decode("utf-8")
+    download_btn = f"<a href='/download.xlsx?{query}' style='display:inline-block;margin-top:8px;text-decoration:none;'><button type='button'>Download Excel</button></a>" if summary else ""
+    html = f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Return Viewer</title><style>{CSS}</style></head><body><div class="top"><h1>Return Viewer</h1><p>Indicative cash-flow simulation for private credit deals with PRE/CDI and FX curves.</p></div><div class="wrap">{err}<div class="model-layout"><aside class="side-panel"><form class="side-card" method="get"><h2>Deal Terms</h2><div class="terms-grid"><div class="term-row"><label>Curve Date</label><input name="curve_date" type="date" value="{defaults['curve_date']}"></div><div class="term-row"><label>Deal size BRL mm</label><input name="deal_size" type="number" step="20" value="{parse_user_number(defaults['deal_size'], 100):.2f}"></div><div class="term-row"><label>CDI+ spread, % p.a.</label><input name="spread" type="number" step="0.25" value="{defaults['spread']}"></div><div class="term-row"><label>Disbursement month</label><input name="disbursement_month" type="month" value="{defaults['disbursement_month']}"></div><div class="term-row"><label>Maturity, months</label><input name="maturity_months" type="number" step="3" value="{defaults['maturity_months']}"></div><div class="term-row"><label>Amortization</label><select name="amortization"><option value="bullet" {'selected' if defaults['amortization']=='bullet' else ''}>Bullet</option><option value="linear" {'selected' if defaults['amortization']=='linear' else ''}>Linear quarterly</option></select></div><div class="term-row"><label>OID, % of principal</label><input name="upfront_fee" type="number" step="0.25" value="{defaults['upfront_fee']}"></div><div></div><div class="fee-card"><div class="fee-card-grid"><div class="term-row"><label>Extension fee #1</label><input name="extension_fee" type="number" step="0.25" value="{defaults['extension_fee']}"></div><div class="term-row"><label>Month</label><input name="extension_fee_month" type="number" step="3" value="{defaults['extension_fee_month']}"></div><div class="inline-check"><label><input type="radio" name="extension_fee_treatment" value="pik" {'checked' if defaults['extension_fee_treatment']=='pik' else ''}> PIK</label><label><input type="radio" name="extension_fee_treatment" value="cash" {'checked' if defaults['extension_fee_treatment']=='cash' else ''}> Cash</label></div></div></div><div class="fee-card"><div class="fee-card-grid"><div class="term-row"><label>Extension fee #2</label><input name="extension_fee_2" type="number" step="0.25" value="{defaults['extension_fee_2']}"></div><div class="term-row"><label>Month</label><input name="extension_fee_month_2" type="number" step="3" value="{defaults['extension_fee_month_2']}"></div><div class="inline-check"><label><input type="radio" name="extension_fee_treatment_2" value="pik" {'checked' if defaults['extension_fee_treatment_2']=='pik' else ''}> PIK</label><label><input type="radio" name="extension_fee_treatment_2" value="cash" {'checked' if defaults['extension_fee_treatment_2']=='cash' else ''}> Cash</label></div></div></div><div class="term-row full"><label>Interest payment frequency, months</label><select name="interest_frequency_months"><option value="3" {'selected' if defaults['interest_frequency_months']=='3' else ''}>Quarterly</option><option value="6" {'selected' if defaults['interest_frequency_months']=='6' else ''}>Semiannual</option><option value="12" {'selected' if defaults['interest_frequency_months']=='12' else ''}>Annual</option><option value="999" {'selected' if defaults['interest_frequency_months']=='999' else ''}>Bullet / accrue until maturity</option></select></div><div class="term-row full"><button type="submit">Simulate</button>{download_btn}</div></div><div class="hint">Schedule is every 3 months from the disbursement month. Business days use holidays.xlsx. FX and PRE/CDI come from the selected Curve Date and are interpolated to each table date. Extension fee can be PIK into debt or paid in cash.</div></form></aside><main class="table-card"><div class="section-title"><h2>Quarterly deal cash flow</h2><div class="small">All BRL amounts are shown in BRL mm. USD figures remain in full amount.</div></div>{table}<div class="bottom-summary"><h2>Summary</h2>{kpis}</div></main></div></div>
 </body></html>"""
     return html
 
@@ -774,6 +842,150 @@ def index():
 @app.route("/healthz")
 def healthz():
     return "ok"
+
+
+@app.route("/download.xlsx")
+def download_xlsx():
+    summary, df = simulate(request.args)
+    out = io.BytesIO()
+    engine = "xlsxwriter"
+    try:
+        import xlsxwriter  # noqa: F401
+    except Exception:
+        engine = "openpyxl"
+    with pd.ExcelWriter(out, engine=engine) as writer:
+        # Summary sheet
+        summary_df = pd.DataFrame(
+            [
+                ["Curve date", summary["curve_date"]],
+                ["IRR BRL", summary["irr_brl"]],
+                ["IRR USD", summary["irr_usd"]],
+                ["PRE source", summary["pre_name"]],
+                ["FX source", summary["fx_name"]],
+            ],
+            columns=["Metric", "Value"],
+        )
+        summary_df.to_excel(writer, sheet_name="Summary", index=False)
+        ws_sum = writer.sheets["Summary"]
+        wb = writer.book
+        if engine == "xlsxwriter":
+            header_fmt = wb.add_format({"bold": True, "bg_color": "#100058", "font_color": "white", "border": 1})
+            note_fmt = wb.add_format({"font_color": "#4b5a7a", "italic": True, "font_size": 10})
+            pct_fmt = wb.add_format({"num_format": "0.00%"})
+            link_fmt = wb.add_format({"font_color": "blue", "underline": 1})
+            for col, name in enumerate(summary_df.columns):
+                ws_sum.write(0, col, name, header_fmt)
+        else:
+            pct_fmt = None
+        ws_sum.set_column("A:A", 22)
+        ws_sum.set_column("B:B", 42)
+        if engine == "xlsxwriter":
+            ws_sum.write_number(2, 1, summary["irr_brl"] if summary["irr_brl"] is not None else 0, pct_fmt)
+            ws_sum.write_number(3, 1, summary["irr_usd"] if summary["irr_usd"] is not None else 0, pct_fmt)
+            ws_sum.write_url(4, 1, f"external:gs://{GCS_BUCKET_NAME}/{summary['pre_name']}", link_fmt, summary["pre_name"])
+            ws_sum.write_url(5, 1, f"external:gs://{GCS_BUCKET_NAME}/{summary['fx_name']}", link_fmt, summary["fx_name"])
+            ws_sum.write(7, 0, "Generated from Return Viewer", note_fmt)
+        else:
+            ws_sum.write(8, 1, f"gs://{GCS_BUCKET_NAME}/{summary['pre_name']}")
+            ws_sum.write(9, 1, f"gs://{GCS_BUCKET_NAME}/{summary['fx_name']}")
+
+        # Cashflow sheet - horizontal layout mirroring the site table
+        if engine != "xlsxwriter":
+            df.to_excel(writer, sheet_name="Cashflow", index=False)
+        else:
+            ws = wb.add_worksheet("Cashflow")
+            writer.sheets["Cashflow"] = ws
+            periods = list(df["period_label"])
+            header = ["Metric", "Unit"] + periods
+            rows_spec = [
+            ("Rates & Support", "-", "spacer", None),
+            ("Payment date", "Date", "date", df["payment_date"]),
+            ("Quarter", "Text", "text", df["quarter"]),
+            ("Period business days", "BD", "int", df["period_business_days"]),
+            ("PRE rate at period start", "% p.a.", "pct", df["pre_rate_start"]),
+            ("PRE rate at period end", "% p.a.", "pct", df["pre_rate_end"]),
+            ("Implied CDI for period", "% p.a.", "pct", df["cdi_period_rate"]),
+            ("Spread over CDI", "% p.a.", "pct", df["spread"]),
+            ("Total Rate", "% p.a.", "pct", df["deal_rate"]),
+            ("", "", "blank", None),
+            ("Debt balance bridge", "-", "spacer", None),
+            ("Debt BoP", "BRL mm", "brl", df["debt_bop_brl"]),
+            ("(+) Issuance", "BRL mm", "brl", df["issuance_brl"]),
+            ("(+) Interest Accrual", "BRL mm", "brl", df["interest_accrual_brl"]),
+            ("(+) Extension Fee #1", "BRL mm", "brl", df["extension_fee_accrual_brl"]),
+            ("(+) Extension Fee #2", "BRL mm", "brl", df["extension_fee_accrual_brl_2"]),
+            ("(-) Cash Interest", "BRL mm", "brl", -df["cash_interest_brl"]),
+            ("(-) Debt Amortization", "BRL mm", "brl", -df["principal_brl"]),
+            ("(=) Debt EoP", "BRL mm", "brl", df["debt_eop_brl"]),
+            ("", "", "blank", None),
+            ("Cash flow / FX", "-", "spacer", None),
+            ("(-) Disbursement", "BRL mm", "brl", df["disbursement_brl"]),
+            ("(+) OID", "BRL mm", "brl", df["upfront_fee_brl"]),
+            ("(+) Cash Interest", "BRL mm", "brl", df["cash_interest_brl"]),
+            ("(+) Extension Fee #1", "BRL mm", "brl", df["cash_extension_fee_brl"]),
+            ("(+) Extension Fee #2", "BRL mm", "brl", df["cash_extension_fee_brl_2"]),
+            ("(+) Debt Repayment", "BRL mm", "brl", df["principal_brl"]),
+            ("(=) Total Debt Cash Flow", "BRL mm", "brl", df["total_cf_brl"]),
+            ("BRL/USD forward FX", "BRL/USD", "fx", df["fx_forward"]),
+            ("Total Debt Cash Flow", "USD mm", "usdmm", df["total_cf_usd"]),
+        ]
+
+            fmt_header = wb.add_format({"bold": True, "bg_color": "#100058", "font_color": "white", "border": 1, "align": "center"})
+            fmt_metric = wb.add_format({"border": 1})
+            fmt_spacer = wb.add_format({"bold": True, "underline": 1, "border": 1})
+            fmt_num = wb.add_format({"border": 1, "num_format": "#,##0.0"})
+            fmt_int = wb.add_format({"border": 1, "num_format": "#,##0"})
+            fmt_pct = wb.add_format({"border": 1, "num_format": "0.00%"})
+            fmt_fx = wb.add_format({"border": 1, "num_format": "0.00"})
+            fmt_date = wb.add_format({"border": 1, "num_format": "dd-mmm-yy"})
+            fmt_text = wb.add_format({"border": 1})
+            fmt_strong = wb.add_format({"border": 1, "bold": True})
+
+            for c, val in enumerate(header):
+                ws.write(0, c, val, fmt_header)
+
+            r = 1
+            for label, unit, kind, series in rows_spec:
+                if kind == "blank":
+                    r += 1
+                    continue
+                row_fmt = fmt_spacer if kind == "spacer" else fmt_metric
+                ws.write(r, 0, label, row_fmt)
+                ws.write(r, 1, unit, row_fmt)
+                if kind == "spacer":
+                    for c in range(2, len(header)):
+                        ws.write(r, c, "", row_fmt)
+                    r += 1
+                    continue
+
+                vals = list(series.values) if series is not None else []
+                for i, v in enumerate(vals, start=2):
+                    if kind == "date":
+                        ws.write_datetime(r, i, pd.Timestamp(v).to_pydatetime(), fmt_date)
+                    elif kind == "int":
+                        ws.write_number(r, i, 0 if is_zero(v) else float(v), fmt_int)
+                    elif kind == "pct":
+                        ws.write_number(r, i, 0 if is_zero(v) else float(v), fmt_pct)
+                    elif kind == "fx":
+                        ws.write_number(r, i, 0 if is_zero(v) else float(v), fmt_fx)
+                    elif kind == "brl":
+                        ws.write_number(r, i, float(v) / 1_000_000.0 if not is_zero(v) else 0.0, fmt_num if "(=)" not in label else fmt_strong)
+                    elif kind == "usdmm":
+                        ws.write_number(r, i, float(v) / 1_000_000.0 if not is_zero(v) else 0.0, fmt_num if "Total Debt Cash Flow" not in label else fmt_strong)
+                    else:
+                        ws.write(r, i, str(v), fmt_text)
+                r += 1
+
+            ws.set_column(0, 0, 30)
+            ws.set_column(1, 1, 10)
+            ws.set_column(2, len(header), 12)
+            ws.freeze_panes(1, 2)
+    out.seek(0)
+    return Response(
+        out.getvalue(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=return_viewer.xlsx"},
+    )
 
 
 if __name__ == "__main__":
