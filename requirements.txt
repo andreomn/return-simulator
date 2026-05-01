@@ -3,3 +3,4 @@ gunicorn==22.0.0
 google-cloud-storage==2.19.0
 pandas==2.2.2
 numpy==1.26.4
+XlsxWriter==3.2.0
