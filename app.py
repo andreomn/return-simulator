@@ -725,7 +725,7 @@ def render_horizontal_table(df: pd.DataFrame) -> str:
 
 
 CSS = """
-:root{--navy:#14006f;--navy-2:#14006f;--line:#cfd6e6;--soft:#f5f6fb;--text:#1c1f37;--muted:#5f6782;--white:#fff;--green:#eaf9f0;--greenline:#bde2cb}
+:root{--navy:#100058;--navy-2:#100058;--line:#cfd6e6;--soft:#f5f6fb;--text:#1c1f37;--muted:#5f6782;--white:#fff;--green:#eaf9f0;--greenline:#bde2cb}
 *{box-sizing:border-box}
 body{margin:0;font-family:Georgia,'Times New Roman',serif;color:var(--text);background:#ececf1}
 .top{max-width:1680px;margin:22px auto 0;border-radius:10px;background:linear-gradient(90deg,var(--navy),var(--navy-2));color:#fff;padding:22px 28px}
@@ -755,7 +755,7 @@ button{background:var(--navy);color:#fff;border:1px solid var(--navy);padding:12
 .kpi .v{font-size:18px;font-weight:700;margin-top:5px;color:var(--navy)}
 .hint{color:var(--muted);font-size:12px;margin-top:10px;line-height:1.45}
 .error{background:#fff3f3;color:#8a1f1f;border:1px solid #ffd0d0;border-radius:8px;padding:14px;margin-bottom:18px}
-.table-card{min-width:0}
+.table-card{min-width:0;max-height:760px;overflow:auto}
 .horizontal-wrap{overflow:auto;border:1px solid var(--line);border-radius:8px;max-height:760px}
 .horizontal{border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:1250px}
 .horizontal th,.horizontal td{border-bottom:1px solid #e3e7f2;border-right:1px solid #e3e7f2;padding:9px 10px;text-align:center;white-space:nowrap;font-weight:400}
