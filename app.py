@@ -725,17 +725,17 @@ def render_horizontal_table(df: pd.DataFrame) -> str:
 
 
 CSS = """
-:root{--navy:#1e0a88;--navy-2:#1e0a88;--line:#cfd6e6;--soft:#f5f6fb;--text:#1c1f37;--muted:#5f6782;--white:#fff;--green:#eaf9f0;--greenline:#bde2cb}
+:root{--navy:#14006f;--navy-2:#14006f;--line:#cfd6e6;--soft:#f5f6fb;--text:#1c1f37;--muted:#5f6782;--white:#fff;--green:#eaf9f0;--greenline:#bde2cb}
 *{box-sizing:border-box}
 body{margin:0;font-family:Georgia,'Times New Roman',serif;color:var(--text);background:#ececf1}
 .top{max-width:1680px;margin:22px auto 0;border-radius:10px;background:linear-gradient(90deg,var(--navy),var(--navy-2));color:#fff;padding:22px 28px}
-.top h1{margin:0;font-size:52px;font-weight:700;letter-spacing:.2px}
-.top p{margin:10px 0 0;font-size:22px;opacity:.95}
+.top h1{margin:0;font-size:28px;font-weight:700;letter-spacing:.2px}
+.top p{margin:10px 0 0;font-size:12px;opacity:.95}
 .wrap{max-width:1680px;margin:0 auto;padding:18px 30px 28px}
 .model-layout{display:grid;grid-template-columns:380px minmax(900px,1fr);gap:20px;align-items:start}
 .side-panel{position:sticky;top:18px}
 .side-card,.table-card{border:1px solid var(--line);border-radius:8px;padding:20px;background:var(--white)}
-.side-card h2{margin:0 0 14px;font-size:34px;color:var(--navy);text-align:center}
+.side-card h2{margin:0 0 14px;font-size:18px;color:var(--navy);text-align:center}
 .terms-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}
 .term-row.full{grid-column:1/-1}
 .fee-card{grid-column:1/-1;border:1px solid var(--line);border-radius:8px;padding:12px;background:#fbfbfe}
@@ -770,7 +770,7 @@ button{background:var(--navy);color:#fff;border:1px solid var(--navy);padding:12
 .horizontal tr.spacer .spacer-label{font-weight:700;color:var(--navy);background:#fff;text-decoration:underline}
 .horizontal tr.italic-row th,.horizontal tr.italic-row td{font-style:italic}
 .section-title{display:flex;justify-content:space-between;align-items:flex-end;gap:16px}
-h2{margin:0 0 14px;font-size:36px;color:var(--navy)}
+h2{margin:0 0 14px;font-size:21px;color:var(--navy)}
 .small{font-size:12px;color:var(--muted)}
 @media(max-width:1100px){.model-layout{grid-template-columns:1fr}.side-panel{position:static}.kpis{grid-template-columns:repeat(2,1fr)}}
 """
