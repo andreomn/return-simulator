@@ -828,7 +828,9 @@ def render_page(error=None):
     err = f"<div class='error'>{error}</div>" if error else ""
     table = render_horizontal_table(df)
 
-    html = f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Return Viewer</title><style>{CSS}</style></head><body><div class="top"><h1>Return Viewer</h1><p>Indicative cash-flow simulation for private credit deals with PRE/CDI and FX curves.</p></div><div class="wrap">{err}<div class="model-layout"><aside class="side-panel"><form class="side-card" method="get"><h2>Deal Terms</h2><div class="terms-grid"><div class="term-row"><label>Curve Date</label><input name="curve_date" type="date" value="{defaults['curve_date']}"></div><div class="term-row"><label>Deal size BRL mm</label><input name="deal_size" type="number" step="20" value="{parse_user_number(defaults['deal_size'], 100):.2f}"></div><div class="term-row"><label>CDI+ spread, % p.a.</label><input name="spread" type="number" step="0.25" value="{defaults['spread']}"></div><div class="term-row"><label>Disbursement month</label><input name="disbursement_month" type="month" value="{defaults['disbursement_month']}"></div><div class="term-row"><label>Maturity, months</label><input name="maturity_months" type="number" step="3" value="{defaults['maturity_months']}"></div><div class="term-row"><label>Amortization</label><select name="amortization"><option value="bullet" {'selected' if defaults['amortization']=='bullet' else ''}>Bullet</option><option value="linear" {'selected' if defaults['amortization']=='linear' else ''}>Linear quarterly</option></select></div><div class="term-row"><label>OID, % of principal</label><input name="upfront_fee" type="number" step="0.25" value="{defaults['upfront_fee']}"></div><div></div><div class="fee-card"><div class="fee-card-grid"><div class="term-row"><label>Extension fee #1</label><input name="extension_fee" type="number" step="0.25" value="{defaults['extension_fee']}"></div><div class="term-row"><label>Month</label><input name="extension_fee_month" type="number" step="3" value="{defaults['extension_fee_month']}"></div><div class="inline-check"><label><input type="radio" name="extension_fee_treatment" value="pik" {'checked' if defaults['extension_fee_treatment']=='pik' else ''}> PIK</label><label><input type="radio" name="extension_fee_treatment" value="cash" {'checked' if defaults['extension_fee_treatment']=='cash' else ''}> Cash</label></div></div></div><div class="fee-card"><div class="fee-card-grid"><div class="term-row"><label>Extension fee #2</label><input name="extension_fee_2" type="number" step="0.25" value="{defaults['extension_fee_2']}"></div><div class="term-row"><label>Month</label><input name="extension_fee_month_2" type="number" step="3" value="{defaults['extension_fee_month_2']}"></div><div class="inline-check"><label><input type="radio" name="extension_fee_treatment_2" value="pik" {'checked' if defaults['extension_fee_treatment_2']=='pik' else ''}> PIK</label><label><input type="radio" name="extension_fee_treatment_2" value="cash" {'checked' if defaults['extension_fee_treatment_2']=='cash' else ''}> Cash</label></div></div></div><div class="term-row full"><label>Interest payment frequency, months</label><select name="interest_frequency_months"><option value="3" {'selected' if defaults['interest_frequency_months']=='3' else ''}>Quarterly</option><option value="6" {'selected' if defaults['interest_frequency_months']=='6' else ''}>Semiannual</option><option value="12" {'selected' if defaults['interest_frequency_months']=='12' else ''}>Annual</option><option value="999" {'selected' if defaults['interest_frequency_months']=='999' else ''}>Bullet / accrue until maturity</option></select></div><div class="term-row full"><button type="submit">Simulate</button></div></div><div class="hint">Schedule is every 3 months from the disbursement month. Business days use holidays.xlsx. FX and PRE/CDI come from the selected Curve Date and are interpolated to each table date. Extension fee can be PIK into debt or paid in cash.</div></form></aside><main class="table-card"><div class="section-title"><h2>Quarterly deal cash flow</h2><div class="small">All BRL amounts are shown in BRL mm. USD figures remain in full amount.</div></div>{table}<div class="bottom-summary"><h2>Summary</h2>{kpis}</div></main></div></div>
+    query = request.query_string.decode("utf-8")
+    download_btn = f"<a href='/download.xlsx?{query}' style='display:inline-block;margin-top:8px;text-decoration:none;'><button type='button'>Download Excel</button></a>" if summary else ""
+    html = f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Return Viewer</title><style>{CSS}</style></head><body><div class="top"><h1>Return Viewer</h1><p>Indicative cash-flow simulation for private credit deals with PRE/CDI and FX curves.</p></div><div class="wrap">{err}<div class="model-layout"><aside class="side-panel"><form class="side-card" method="get"><h2>Deal Terms</h2><div class="terms-grid"><div class="term-row"><label>Curve Date</label><input name="curve_date" type="date" value="{defaults['curve_date']}"></div><div class="term-row"><label>Deal size BRL mm</label><input name="deal_size" type="number" step="20" value="{parse_user_number(defaults['deal_size'], 100):.2f}"></div><div class="term-row"><label>CDI+ spread, % p.a.</label><input name="spread" type="number" step="0.25" value="{defaults['spread']}"></div><div class="term-row"><label>Disbursement month</label><input name="disbursement_month" type="month" value="{defaults['disbursement_month']}"></div><div class="term-row"><label>Maturity, months</label><input name="maturity_months" type="number" step="3" value="{defaults['maturity_months']}"></div><div class="term-row"><label>Amortization</label><select name="amortization"><option value="bullet" {'selected' if defaults['amortization']=='bullet' else ''}>Bullet</option><option value="linear" {'selected' if defaults['amortization']=='linear' else ''}>Linear quarterly</option></select></div><div class="term-row"><label>OID, % of principal</label><input name="upfront_fee" type="number" step="0.25" value="{defaults['upfront_fee']}"></div><div></div><div class="fee-card"><div class="fee-card-grid"><div class="term-row"><label>Extension fee #1</label><input name="extension_fee" type="number" step="0.25" value="{defaults['extension_fee']}"></div><div class="term-row"><label>Month</label><input name="extension_fee_month" type="number" step="3" value="{defaults['extension_fee_month']}"></div><div class="inline-check"><label><input type="radio" name="extension_fee_treatment" value="pik" {'checked' if defaults['extension_fee_treatment']=='pik' else ''}> PIK</label><label><input type="radio" name="extension_fee_treatment" value="cash" {'checked' if defaults['extension_fee_treatment']=='cash' else ''}> Cash</label></div></div></div><div class="fee-card"><div class="fee-card-grid"><div class="term-row"><label>Extension fee #2</label><input name="extension_fee_2" type="number" step="0.25" value="{defaults['extension_fee_2']}"></div><div class="term-row"><label>Month</label><input name="extension_fee_month_2" type="number" step="3" value="{defaults['extension_fee_month_2']}"></div><div class="inline-check"><label><input type="radio" name="extension_fee_treatment_2" value="pik" {'checked' if defaults['extension_fee_treatment_2']=='pik' else ''}> PIK</label><label><input type="radio" name="extension_fee_treatment_2" value="cash" {'checked' if defaults['extension_fee_treatment_2']=='cash' else ''}> Cash</label></div></div></div><div class="term-row full"><label>Interest payment frequency, months</label><select name="interest_frequency_months"><option value="3" {'selected' if defaults['interest_frequency_months']=='3' else ''}>Quarterly</option><option value="6" {'selected' if defaults['interest_frequency_months']=='6' else ''}>Semiannual</option><option value="12" {'selected' if defaults['interest_frequency_months']=='12' else ''}>Annual</option><option value="999" {'selected' if defaults['interest_frequency_months']=='999' else ''}>Bullet / accrue until maturity</option></select></div><div class="term-row full"><button type="submit">Simulate</button>{download_btn}</div></div><div class="hint">Schedule is every 3 months from the disbursement month. Business days use holidays.xlsx. FX and PRE/CDI come from the selected Curve Date and are interpolated to each table date. Extension fee can be PIK into debt or paid in cash.</div></form></aside><main class="table-card"><div class="section-title"><h2>Quarterly deal cash flow</h2><div class="small">All BRL amounts are shown in BRL mm. USD figures remain in full amount.</div></div>{table}<div class="bottom-summary"><h2>Summary</h2>{kpis}</div></main></div></div>
 </body></html>"""
     return html
 
@@ -840,6 +842,60 @@ def index():
 @app.route("/healthz")
 def healthz():
     return "ok"
+
+
+@app.route("/download.xlsx")
+def download_xlsx():
+    summary, df = simulate(request.args)
+    out = io.BytesIO()
+    with pd.ExcelWriter(out, engine="xlsxwriter") as writer:
+        # Summary sheet
+        summary_df = pd.DataFrame(
+            [
+                ["Curve date", summary["curve_date"]],
+                ["IRR BRL", summary["irr_brl"]],
+                ["IRR USD", summary["irr_usd"]],
+                ["PRE source", summary["pre_name"]],
+                ["FX source", summary["fx_name"]],
+            ],
+            columns=["Metric", "Value"],
+        )
+        summary_df.to_excel(writer, sheet_name="Summary", index=False)
+        ws_sum = writer.sheets["Summary"]
+        wb = writer.book
+        header_fmt = wb.add_format({"bold": True, "bg_color": "#100058", "font_color": "white", "border": 1})
+        note_fmt = wb.add_format({"font_color": "#4b5a7a", "italic": True, "font_size": 10})
+        pct_fmt = wb.add_format({"num_format": "0.00%"})
+        link_fmt = wb.add_format({"font_color": "blue", "underline": 1})
+        for col, name in enumerate(summary_df.columns):
+            ws_sum.write(0, col, name, header_fmt)
+        ws_sum.set_column("A:A", 22)
+        ws_sum.set_column("B:B", 42)
+        ws_sum.write_number(2, 1, summary["irr_brl"] if summary["irr_brl"] is not None else 0, pct_fmt)
+        ws_sum.write_number(3, 1, summary["irr_usd"] if summary["irr_usd"] is not None else 0, pct_fmt)
+        ws_sum.write_url(4, 1, f"external:gs://{GCS_BUCKET_NAME}/{summary['pre_name']}", link_fmt, summary["pre_name"])
+        ws_sum.write_url(5, 1, f"external:gs://{GCS_BUCKET_NAME}/{summary['fx_name']}", link_fmt, summary["fx_name"])
+        ws_sum.write(7, 0, "Generated from Return Viewer", note_fmt)
+
+        # Cashflow sheet
+        export = df.copy()
+        for col in export.columns:
+            if col.endswith("_brl"):
+                export[col] = export[col] / 1_000_000.0
+            if col == "total_cf_usd":
+                export[col] = export[col] / 1_000_000.0
+        export.to_excel(writer, sheet_name="Cashflow", index=False)
+        ws = writer.sheets["Cashflow"]
+        for i, name in enumerate(export.columns):
+            ws.write(0, i, name, header_fmt)
+            ws.set_column(i, i, 14)
+        ws.freeze_panes(1, 0)
+    out.seek(0)
+    return Response(
+        out.getvalue(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=return_viewer.xlsx"},
+    )
 
 
 if __name__ == "__main__":
