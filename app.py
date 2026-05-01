@@ -373,6 +373,13 @@ def fmt_money(x, decimals=1):
     return fmt_num(x, decimals)
 
 
+def to_brl_mm(x):
+    try:
+        return float(x) / 1_000_000.0
+    except Exception:
+        return x
+
+
 def fmt_pct(x):
     if x is None or (isinstance(x, float) and math.isnan(x)) or pd.isna(x):
         return "-"
@@ -434,7 +441,8 @@ def simulate(form):
     curve_date = parse_curve_date(form.get("curve_date", ""))
     pre, fx, pre_date, fx_date, pre_name, fx_name = get_curves(curve_date)
     holidays = get_holidays()
-    deal_size = parse_user_number(form.get("deal_size", 100_000_000), 100_000_000)
+    deal_size_mm = parse_user_number(form.get("deal_size", 100), 100)
+    deal_size = deal_size_mm * 1_000_000.0
     spread_pct = parse_user_number(form.get("spread", 3.00), 3.00) / 100.0
     disb_month = parse_month(form.get("disbursement_month", ""))
     disb_date = month_end(disb_month)
@@ -656,7 +664,9 @@ def table_row(label, unit, values, kind="number", decimals=1, strong=False, ital
             txt = fmt_pct(v)
         elif kind == "fx":
             txt = "-" if is_zero(v) else fmt_num(v, 4)
-        elif kind in ["usd", "brl"]:
+        elif kind == "brl":
+            txt = fmt_money(to_brl_mm(v), decimals)
+        elif kind == "usd":
             txt = fmt_money(v, decimals)
         elif kind == "int":
             txt = fmt_int(v)
@@ -698,26 +708,26 @@ def render_horizontal_table(df: pd.DataFrame) -> str:
 
     # 2) Debt balance bridge
     rows.append(table_spacer("Debt balance bridge"))
-    rows.append(table_row("Debt BoP", "BRL", df["debt_bop_brl"], "brl"))
-    rows.append(table_row("(+) Issuance", "BRL", df["issuance_brl"], "brl"))
-    rows.append(table_row("(+) Interest Accrual", "BRL", df["interest_accrual_brl"], "brl"))
-    rows.append(table_row("(+) Extension Fee #1", "BRL", df["extension_fee_accrual_brl"], "brl"))
-    rows.append(table_row("(+) Extension Fee #2", "BRL", df["extension_fee_accrual_brl_2"], "brl"))
-    rows.append(table_row("(-) Cash Interest", "BRL", -df["cash_interest_brl"], "brl"))
-    rows.append(table_row("(-) Debt Amortization", "BRL", -df["principal_brl"], "brl"))
-    rows.append(table_row("(=) Debt EoP", "BRL", df["debt_eop_brl"], "brl", strong=True))
+    rows.append(table_row("Debt BoP", "BRL mm", df["debt_bop_brl"], "brl"))
+    rows.append(table_row("(+) Issuance", "BRL mm", df["issuance_brl"], "brl"))
+    rows.append(table_row("(+) Interest Accrual", "BRL mm", df["interest_accrual_brl"], "brl"))
+    rows.append(table_row("(+) Extension Fee #1", "BRL mm", df["extension_fee_accrual_brl"], "brl"))
+    rows.append(table_row("(+) Extension Fee #2", "BRL mm", df["extension_fee_accrual_brl_2"], "brl"))
+    rows.append(table_row("(-) Cash Interest", "BRL mm", -df["cash_interest_brl"], "brl"))
+    rows.append(table_row("(-) Debt Amortization", "BRL mm", -df["principal_brl"], "brl"))
+    rows.append(table_row("(=) Debt EoP", "BRL mm", df["debt_eop_brl"], "brl", strong=True))
     rows.append(table_blank())
     rows.append(table_blank())
 
     # 3) Cash flow and FX conversion
     rows.append(table_spacer("Cash flow / FX"))
-    rows.append(table_row("(-) Disbursement", "BRL", df["disbursement_brl"], "brl"))
-    rows.append(table_row("(+) OID", "BRL", df["upfront_fee_brl"], "brl"))
-    rows.append(table_row("(+) Cash Interest", "BRL", df["cash_interest_brl"], "brl"))
-    rows.append(table_row("(+) Extension Fee #1", "BRL", df["cash_extension_fee_brl"], "brl"))
-    rows.append(table_row("(+) Extension Fee #2", "BRL", df["cash_extension_fee_brl_2"], "brl"))
-    rows.append(table_row("(+) Debt Repayment", "BRL", df["principal_brl"], "brl"))
-    rows.append(table_row("(=) Total Debt Cash Flow", "BRL", df["total_cf_brl"], "brl", strong=True))
+    rows.append(table_row("(-) Disbursement", "BRL mm", df["disbursement_brl"], "brl"))
+    rows.append(table_row("(+) OID", "BRL mm", df["upfront_fee_brl"], "brl"))
+    rows.append(table_row("(+) Cash Interest", "BRL mm", df["cash_interest_brl"], "brl"))
+    rows.append(table_row("(+) Extension Fee #1", "BRL mm", df["cash_extension_fee_brl"], "brl"))
+    rows.append(table_row("(+) Extension Fee #2", "BRL mm", df["cash_extension_fee_brl_2"], "brl"))
+    rows.append(table_row("(+) Debt Repayment", "BRL mm", df["principal_brl"], "brl"))
+    rows.append(table_row("(=) Total Debt Cash Flow", "BRL mm", df["total_cf_brl"], "brl", strong=True))
     rows.append(table_row("BRL/USD forward FX", "BRL/USD", df["fx_forward"], "fx", italic=True))
     rows.append(table_row("Total Debt Cash Flow", "USD", df["total_cf_usd"], "usd", strong=True))
 
@@ -778,7 +788,7 @@ h2{margin:0 0 14px;font-size:21px;color:var(--navy)}
 
 def render_page(error=None):
     defaults = {
-        "deal_size": f"{parse_user_number(request.values.get('deal_size', '100000000'), 100000000):,.0f}",
+        "deal_size": f"{parse_user_number(request.values.get('deal_size', '100'), 100):,.2f}",
         "spread": request.values.get("spread", "3.00"),
         "maturity_months": request.values.get("maturity_months", "36"),
         "disbursement_month": request.values.get("disbursement_month", pd.Timestamp.today().strftime("%Y-%m")),
@@ -809,7 +819,7 @@ def render_page(error=None):
     err = f"<div class='error'>{error}</div>" if error else ""
     table = render_horizontal_table(df)
 
-    html = f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Return Viewer</title><style>{CSS}</style></head><body><div class="top"><h1>Return Viewer</h1><p>Indicative cash-flow simulation for private credit deals with PRE/CDI and FX curves.</p></div><div class="wrap">{err}<div class="model-layout"><aside class="side-panel"><form class="side-card" method="get"><h2>Deal Terms</h2><div class="terms-grid"><div class="term-row"><label>Curve Date</label><input name="curve_date" type="date" value="{defaults['curve_date']}"></div><div class="term-row"><label>Deal size BRL</label><input name="deal_size" type="number" step="20000000" value="{int(parse_user_number(defaults['deal_size'], 100000000))}"></div><div class="term-row"><label>CDI+ spread, % p.a.</label><input name="spread" type="number" step="0.25" value="{defaults['spread']}"></div><div class="term-row"><label>Disbursement month</label><input name="disbursement_month" type="month" value="{defaults['disbursement_month']}"></div><div class="term-row"><label>Maturity, months</label><input name="maturity_months" type="number" step="3" value="{defaults['maturity_months']}"></div><div class="term-row"><label>Amortization</label><select name="amortization"><option value="bullet" {'selected' if defaults['amortization']=='bullet' else ''}>Bullet</option><option value="linear" {'selected' if defaults['amortization']=='linear' else ''}>Linear quarterly</option></select></div><div class="term-row"><label>OID, % of principal</label><input name="upfront_fee" type="number" step="0.25" value="{defaults['upfront_fee']}"></div><div></div><div class="fee-card"><div class="fee-card-grid"><div class="term-row"><label>Extension fee #1</label><input name="extension_fee" type="number" step="0.25" value="{defaults['extension_fee']}"></div><div class="term-row"><label>Month</label><input name="extension_fee_month" type="number" step="3" value="{defaults['extension_fee_month']}"></div><div class="inline-check"><label><input type="radio" name="extension_fee_treatment" value="pik" {'checked' if defaults['extension_fee_treatment']=='pik' else ''}> PIK</label><label><input type="radio" name="extension_fee_treatment" value="cash" {'checked' if defaults['extension_fee_treatment']=='cash' else ''}> Cash</label></div></div></div><div class="fee-card"><div class="fee-card-grid"><div class="term-row"><label>Extension fee #2</label><input name="extension_fee_2" type="number" step="0.25" value="{defaults['extension_fee_2']}"></div><div class="term-row"><label>Month</label><input name="extension_fee_month_2" type="number" step="3" value="{defaults['extension_fee_month_2']}"></div><div class="inline-check"><label><input type="radio" name="extension_fee_treatment_2" value="pik" {'checked' if defaults['extension_fee_treatment_2']=='pik' else ''}> PIK</label><label><input type="radio" name="extension_fee_treatment_2" value="cash" {'checked' if defaults['extension_fee_treatment_2']=='cash' else ''}> Cash</label></div></div></div><div class="term-row full"><label>Interest payment frequency, months</label><select name="interest_frequency_months"><option value="3" {'selected' if defaults['interest_frequency_months']=='3' else ''}>Quarterly</option><option value="6" {'selected' if defaults['interest_frequency_months']=='6' else ''}>Semiannual</option><option value="12" {'selected' if defaults['interest_frequency_months']=='12' else ''}>Annual</option><option value="999" {'selected' if defaults['interest_frequency_months']=='999' else ''}>Bullet / accrue until maturity</option></select></div><div class="term-row full"><button type="submit">Simulate</button></div></div><div class="hint">Schedule is every 3 months from the disbursement month. Business days use holidays.xlsx. FX and PRE/CDI come from the selected Curve Date and are interpolated to each table date. Extension fee can be PIK into debt or paid in cash.</div></form></aside><main class="table-card"><div class="section-title"><h2>Quarterly deal cash flow</h2><div class="small">All BRL/USD figures shown in full amount, without currency symbols.</div></div>{table}<div class="bottom-summary"><h2>Summary</h2>{kpis}</div></main></div></div>
+    html = f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Return Viewer</title><style>{CSS}</style></head><body><div class="top"><h1>Return Viewer</h1><p>Indicative cash-flow simulation for private credit deals with PRE/CDI and FX curves.</p></div><div class="wrap">{err}<div class="model-layout"><aside class="side-panel"><form class="side-card" method="get"><h2>Deal Terms</h2><div class="terms-grid"><div class="term-row"><label>Curve Date</label><input name="curve_date" type="date" value="{defaults['curve_date']}"></div><div class="term-row"><label>Deal size BRL mm</label><input name="deal_size" type="number" step="20" value="{parse_user_number(defaults['deal_size'], 100):.2f}"></div><div class="term-row"><label>CDI+ spread, % p.a.</label><input name="spread" type="number" step="0.25" value="{defaults['spread']}"></div><div class="term-row"><label>Disbursement month</label><input name="disbursement_month" type="month" value="{defaults['disbursement_month']}"></div><div class="term-row"><label>Maturity, months</label><input name="maturity_months" type="number" step="3" value="{defaults['maturity_months']}"></div><div class="term-row"><label>Amortization</label><select name="amortization"><option value="bullet" {'selected' if defaults['amortization']=='bullet' else ''}>Bullet</option><option value="linear" {'selected' if defaults['amortization']=='linear' else ''}>Linear quarterly</option></select></div><div class="term-row"><label>OID, % of principal</label><input name="upfront_fee" type="number" step="0.25" value="{defaults['upfront_fee']}"></div><div></div><div class="fee-card"><div class="fee-card-grid"><div class="term-row"><label>Extension fee #1</label><input name="extension_fee" type="number" step="0.25" value="{defaults['extension_fee']}"></div><div class="term-row"><label>Month</label><input name="extension_fee_month" type="number" step="3" value="{defaults['extension_fee_month']}"></div><div class="inline-check"><label><input type="radio" name="extension_fee_treatment" value="pik" {'checked' if defaults['extension_fee_treatment']=='pik' else ''}> PIK</label><label><input type="radio" name="extension_fee_treatment" value="cash" {'checked' if defaults['extension_fee_treatment']=='cash' else ''}> Cash</label></div></div></div><div class="fee-card"><div class="fee-card-grid"><div class="term-row"><label>Extension fee #2</label><input name="extension_fee_2" type="number" step="0.25" value="{defaults['extension_fee_2']}"></div><div class="term-row"><label>Month</label><input name="extension_fee_month_2" type="number" step="3" value="{defaults['extension_fee_month_2']}"></div><div class="inline-check"><label><input type="radio" name="extension_fee_treatment_2" value="pik" {'checked' if defaults['extension_fee_treatment_2']=='pik' else ''}> PIK</label><label><input type="radio" name="extension_fee_treatment_2" value="cash" {'checked' if defaults['extension_fee_treatment_2']=='cash' else ''}> Cash</label></div></div></div><div class="term-row full"><label>Interest payment frequency, months</label><select name="interest_frequency_months"><option value="3" {'selected' if defaults['interest_frequency_months']=='3' else ''}>Quarterly</option><option value="6" {'selected' if defaults['interest_frequency_months']=='6' else ''}>Semiannual</option><option value="12" {'selected' if defaults['interest_frequency_months']=='12' else ''}>Annual</option><option value="999" {'selected' if defaults['interest_frequency_months']=='999' else ''}>Bullet / accrue until maturity</option></select></div><div class="term-row full"><button type="submit">Simulate</button></div></div><div class="hint">Schedule is every 3 months from the disbursement month. Business days use holidays.xlsx. FX and PRE/CDI come from the selected Curve Date and are interpolated to each table date. Extension fee can be PIK into debt or paid in cash.</div></form></aside><main class="table-card"><div class="section-title"><h2>Quarterly deal cash flow</h2><div class="small">All BRL amounts are shown in BRL mm. USD figures remain in full amount.</div></div>{table}<div class="bottom-summary"><h2>Summary</h2>{kpis}</div></main></div></div>
 </body></html>"""
     return html
 
