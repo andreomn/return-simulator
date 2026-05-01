@@ -380,6 +380,13 @@ def to_brl_mm(x):
         return x
 
 
+def to_usd_mm(x):
+    try:
+        return float(x) / 1_000_000.0
+    except Exception:
+        return x
+
+
 def fmt_pct(x):
     if x is None or (isinstance(x, float) and math.isnan(x)) or pd.isna(x):
         return "-"
@@ -663,9 +670,11 @@ def table_row(label, unit, values, kind="number", decimals=1, strong=False, ital
         elif kind == "pct":
             txt = fmt_pct(v)
         elif kind == "fx":
-            txt = "-" if is_zero(v) else fmt_num(v, 4)
+            txt = "-" if is_zero(v) else fmt_num(v, 2)
         elif kind == "brl":
             txt = fmt_money(to_brl_mm(v), decimals)
+        elif kind == "usd_mm":
+            txt = fmt_money(to_usd_mm(v), decimals)
         elif kind == "usd":
             txt = fmt_money(v, decimals)
         elif kind == "int":
@@ -729,7 +738,7 @@ def render_horizontal_table(df: pd.DataFrame) -> str:
     rows.append(table_row("(+) Debt Repayment", "BRL mm", df["principal_brl"], "brl"))
     rows.append(table_row("(=) Total Debt Cash Flow", "BRL mm", df["total_cf_brl"], "brl", strong=True))
     rows.append(table_row("BRL/USD forward FX", "BRL/USD", df["fx_forward"], "fx", italic=True))
-    rows.append(table_row("Total Debt Cash Flow", "USD", df["total_cf_usd"], "usd", strong=True))
+    rows.append(table_row("Total Debt Cash Flow", "USD mm", df["total_cf_usd"], "usd_mm", strong=True))
 
     return f"<div class='horizontal-wrap'><table class='horizontal'><thead>{header}</thead><tbody>{''.join(rows)}</tbody></table></div>"
 
