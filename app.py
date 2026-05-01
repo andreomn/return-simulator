@@ -933,13 +933,13 @@ def download_xlsx():
             fmt_header = wb.add_format({"bold": True, "bg_color": "#100058", "font_color": "white", "border": 1, "align": "center"})
             fmt_metric = wb.add_format({"border": 1})
             fmt_spacer = wb.add_format({"bold": True, "underline": 1, "border": 1})
-            fmt_num = wb.add_format({"border": 1, "num_format": "#,##0.0"})
-            fmt_int = wb.add_format({"border": 1, "num_format": "#,##0"})
-            fmt_pct = wb.add_format({"border": 1, "num_format": "0.00%"})
-            fmt_fx = wb.add_format({"border": 1, "num_format": "0.00"})
-            fmt_date = wb.add_format({"border": 1, "num_format": "dd-mmm-yy"})
+            fmt_num = wb.add_format({"border": 1, "align": "center"})
+            fmt_int = wb.add_format({"border": 1, "align": "center"})
+            fmt_pct = wb.add_format({"border": 1, "align": "center"})
+            fmt_fx = wb.add_format({"border": 1, "align": "center"})
+            fmt_date = wb.add_format({"border": 1, "align": "center"})
             fmt_text = wb.add_format({"border": 1})
-            fmt_strong = wb.add_format({"border": 1, "bold": True})
+            fmt_strong = wb.add_format({"border": 1, "bold": True, "align": "center"})
 
             for c, val in enumerate(header):
                 ws.write(0, c, val, fmt_header)
@@ -960,18 +960,30 @@ def download_xlsx():
 
                 vals = list(series.values) if series is not None else []
                 for i, v in enumerate(vals, start=2):
+                    def pct_txt(x):
+                        if is_zero(x):
+                            return "-"
+                        return f"{float(x)*100:.1f}%".replace(".", ",")
+                    def num_txt(x, decimals=0):
+                        if is_zero(x):
+                            return "-"
+                        val = float(x)
+                        txt = f"{abs(val):,.{decimals}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                        return f"({txt})" if val < 0 else txt
                     if kind == "date":
-                        ws.write_datetime(r, i, pd.Timestamp(v).to_pydatetime(), fmt_date)
+                        ws.write(r, i, pd.Timestamp(v).strftime("%d-%b-%y"), fmt_date)
                     elif kind == "int":
-                        ws.write_number(r, i, 0 if is_zero(v) else float(v), fmt_int)
+                        ws.write(r, i, num_txt(v, 0), fmt_int)
                     elif kind == "pct":
-                        ws.write_number(r, i, 0 if is_zero(v) else float(v), fmt_pct)
+                        ws.write(r, i, pct_txt(v), fmt_pct)
                     elif kind == "fx":
-                        ws.write_number(r, i, 0 if is_zero(v) else float(v), fmt_fx)
+                        ws.write(r, i, num_txt(v, 0), fmt_fx)
                     elif kind == "brl":
-                        ws.write_number(r, i, float(v) / 1_000_000.0 if not is_zero(v) else 0.0, fmt_num if "(=)" not in label else fmt_strong)
+                        mm = float(v) / 1_000_000.0 if not is_zero(v) else 0.0
+                        ws.write(r, i, num_txt(mm, 0), fmt_num if "(=)" not in label else fmt_strong)
                     elif kind == "usdmm":
-                        ws.write_number(r, i, float(v) / 1_000_000.0 if not is_zero(v) else 0.0, fmt_num if "Total Debt Cash Flow" not in label else fmt_strong)
+                        mm = float(v) / 1_000_000.0 if not is_zero(v) else 0.0
+                        ws.write(r, i, num_txt(mm, 0), fmt_num if "Total Debt Cash Flow" not in label else fmt_strong)
                     else:
                         ws.write(r, i, str(v), fmt_text)
                 r += 1
