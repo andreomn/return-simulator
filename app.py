@@ -889,20 +889,97 @@ def download_xlsx():
             ws_sum.write(8, 1, f"gs://{GCS_BUCKET_NAME}/{summary['pre_name']}")
             ws_sum.write(9, 1, f"gs://{GCS_BUCKET_NAME}/{summary['fx_name']}")
 
-        # Cashflow sheet
-        export = df.copy()
-        for col in export.columns:
-            if col.endswith("_brl"):
-                export[col] = export[col] / 1_000_000.0
-            if col == "total_cf_usd":
-                export[col] = export[col] / 1_000_000.0
-        export.to_excel(writer, sheet_name="Cashflow", index=False)
-        ws = writer.sheets["Cashflow"]
-        for i, name in enumerate(export.columns):
-            if engine == "xlsxwriter":
-                ws.write(0, i, name, header_fmt)
-            ws.set_column(i, i, 14)
-        ws.freeze_panes(1, 0)
+        # Cashflow sheet - horizontal layout mirroring the site table
+        if engine != "xlsxwriter":
+            df.to_excel(writer, sheet_name="Cashflow", index=False)
+        else:
+            ws = wb.add_worksheet("Cashflow")
+            writer.sheets["Cashflow"] = ws
+            periods = list(df["period_label"])
+            header = ["Metric", "Unit"] + periods
+            rows_spec = [
+            ("Rates & Support", "-", "spacer", None),
+            ("Payment date", "Date", "date", df["payment_date"]),
+            ("Quarter", "Text", "text", df["quarter"]),
+            ("Period business days", "BD", "int", df["period_business_days"]),
+            ("PRE rate at period start", "% p.a.", "pct", df["pre_rate_start"]),
+            ("PRE rate at period end", "% p.a.", "pct", df["pre_rate_end"]),
+            ("Implied CDI for period", "% p.a.", "pct", df["cdi_period_rate"]),
+            ("Spread over CDI", "% p.a.", "pct", df["spread"]),
+            ("Total Rate", "% p.a.", "pct", df["deal_rate"]),
+            ("", "", "blank", None),
+            ("Debt balance bridge", "-", "spacer", None),
+            ("Debt BoP", "BRL mm", "brl", df["debt_bop_brl"]),
+            ("(+) Issuance", "BRL mm", "brl", df["issuance_brl"]),
+            ("(+) Interest Accrual", "BRL mm", "brl", df["interest_accrual_brl"]),
+            ("(+) Extension Fee #1", "BRL mm", "brl", df["extension_fee_accrual_brl"]),
+            ("(+) Extension Fee #2", "BRL mm", "brl", df["extension_fee_accrual_brl_2"]),
+            ("(-) Cash Interest", "BRL mm", "brl", -df["cash_interest_brl"]),
+            ("(-) Debt Amortization", "BRL mm", "brl", -df["principal_brl"]),
+            ("(=) Debt EoP", "BRL mm", "brl", df["debt_eop_brl"]),
+            ("", "", "blank", None),
+            ("Cash flow / FX", "-", "spacer", None),
+            ("(-) Disbursement", "BRL mm", "brl", df["disbursement_brl"]),
+            ("(+) OID", "BRL mm", "brl", df["upfront_fee_brl"]),
+            ("(+) Cash Interest", "BRL mm", "brl", df["cash_interest_brl"]),
+            ("(+) Extension Fee #1", "BRL mm", "brl", df["cash_extension_fee_brl"]),
+            ("(+) Extension Fee #2", "BRL mm", "brl", df["cash_extension_fee_brl_2"]),
+            ("(+) Debt Repayment", "BRL mm", "brl", df["principal_brl"]),
+            ("(=) Total Debt Cash Flow", "BRL mm", "brl", df["total_cf_brl"]),
+            ("BRL/USD forward FX", "BRL/USD", "fx", df["fx_forward"]),
+            ("Total Debt Cash Flow", "USD mm", "usdmm", df["total_cf_usd"]),
+        ]
+
+            fmt_header = wb.add_format({"bold": True, "bg_color": "#100058", "font_color": "white", "border": 1, "align": "center"})
+            fmt_metric = wb.add_format({"border": 1})
+            fmt_spacer = wb.add_format({"bold": True, "underline": 1, "border": 1})
+            fmt_num = wb.add_format({"border": 1, "num_format": "#,##0.0"})
+            fmt_int = wb.add_format({"border": 1, "num_format": "#,##0"})
+            fmt_pct = wb.add_format({"border": 1, "num_format": "0.00%"})
+            fmt_fx = wb.add_format({"border": 1, "num_format": "0.00"})
+            fmt_date = wb.add_format({"border": 1, "num_format": "dd-mmm-yy"})
+            fmt_text = wb.add_format({"border": 1})
+            fmt_strong = wb.add_format({"border": 1, "bold": True})
+
+            for c, val in enumerate(header):
+                ws.write(0, c, val, fmt_header)
+
+            r = 1
+            for label, unit, kind, series in rows_spec:
+                if kind == "blank":
+                    r += 1
+                    continue
+                row_fmt = fmt_spacer if kind == "spacer" else fmt_metric
+                ws.write(r, 0, label, row_fmt)
+                ws.write(r, 1, unit, row_fmt)
+                if kind == "spacer":
+                    for c in range(2, len(header)):
+                        ws.write(r, c, "", row_fmt)
+                    r += 1
+                    continue
+
+                vals = list(series.values) if series is not None else []
+                for i, v in enumerate(vals, start=2):
+                    if kind == "date":
+                        ws.write_datetime(r, i, pd.Timestamp(v).to_pydatetime(), fmt_date)
+                    elif kind == "int":
+                        ws.write_number(r, i, 0 if is_zero(v) else float(v), fmt_int)
+                    elif kind == "pct":
+                        ws.write_number(r, i, 0 if is_zero(v) else float(v), fmt_pct)
+                    elif kind == "fx":
+                        ws.write_number(r, i, 0 if is_zero(v) else float(v), fmt_fx)
+                    elif kind == "brl":
+                        ws.write_number(r, i, float(v) / 1_000_000.0 if not is_zero(v) else 0.0, fmt_num if "(=)" not in label else fmt_strong)
+                    elif kind == "usdmm":
+                        ws.write_number(r, i, float(v) / 1_000_000.0 if not is_zero(v) else 0.0, fmt_num if "Total Debt Cash Flow" not in label else fmt_strong)
+                    else:
+                        ws.write(r, i, str(v), fmt_text)
+                r += 1
+
+            ws.set_column(0, 0, 30)
+            ws.set_column(1, 1, 10)
+            ws.set_column(2, len(header), 12)
+            ws.freeze_panes(1, 2)
     out.seek(0)
     return Response(
         out.getvalue(),
