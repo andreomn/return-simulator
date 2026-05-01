@@ -933,13 +933,13 @@ def download_xlsx():
             fmt_header = wb.add_format({"bold": True, "bg_color": "#100058", "font_color": "white", "border": 1, "align": "center"})
             fmt_metric = wb.add_format({"border": 1})
             fmt_spacer = wb.add_format({"bold": True, "underline": 1, "border": 1})
-            fmt_num = wb.add_format({"border": 1, "align": "center", "num_format": "#,##0.000000"})
-            fmt_int = wb.add_format({"border": 1, "align": "center", "num_format": "#,##0"})
-            fmt_pct = wb.add_format({"border": 1, "align": "center", "num_format": "0.0000%"})
-            fmt_fx = wb.add_format({"border": 1, "align": "center", "num_format": "#,##0.000000"})
+            fmt_num = wb.add_format({"border": 1, "align": "center", "num_format": "#,##0.0"})
+            fmt_int = wb.add_format({"border": 1, "align": "center", "num_format": "#,##0.0"})
+            fmt_pct = wb.add_format({"border": 1, "align": "center", "num_format": "0.0%"})
+            fmt_fx = wb.add_format({"border": 1, "align": "center", "num_format": "#,##0.0"})
             fmt_date = wb.add_format({"border": 1, "align": "center"})
             fmt_text = wb.add_format({"border": 1})
-            fmt_strong = wb.add_format({"border": 1, "bold": True, "align": "center", "num_format": "#,##0.000000"})
+            fmt_strong = wb.add_format({"border": 1, "bold": True, "align": "center", "num_format": "#,##0.0"})
 
             for c, val in enumerate(header):
                 ws.write(0, c, val, fmt_header)
